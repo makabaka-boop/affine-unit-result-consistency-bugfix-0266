@@ -1,0 +1,37 @@
+services:
+  units:
+    build: ./units
+    container_name: units
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test:
+        - CMD
+        - /usr/local/bin/units
+        - -healthcheck-url
+        - http://localhost:8080/healthz
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+
+  desk:
+    build: ./desk
+    container_name: desk
+    restart: unless-stopped
+    ports:
+      - "8088:80"
+    depends_on:
+      units:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - -qO-
+        - http://localhost:80/
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 3s

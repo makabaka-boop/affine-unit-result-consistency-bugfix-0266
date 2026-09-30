@@ -1,0 +1,171 @@
+:root {
+  --bg: #f7f7f5;
+  --ink: #1c2128;
+  --muted: #5c6670;
+  --line: #d8d6d0;
+  --accent: #235789;
+  --accent-soft: #e7eff7;
+  --error: #b3261e;
+  --error-soft: #fdecea;
+  --ok: #1b5e20;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+.page {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+}
+
+h1 { margin: 0 0 4px; font-size: 28px; }
+h2 { margin: 0 0 12px; font-size: 19px; }
+h3 { margin: 20px 0 10px; font-size: 16px; }
+
+.tagline { color: var(--muted); margin: 0 0 24px; }
+
+.editor {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.input-row { display: flex; gap: 8px; }
+
+#expr-input {
+  flex: 1;
+  font: 16px var(--mono);
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+#expr-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+#target-select, button {
+  font: 15px inherit;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+#eval-btn {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+#eval-btn:disabled { opacity: 0.6; cursor: default; }
+
+.examples { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+.example {
+  font: 12.5px var(--mono);
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: none;
+}
+.example:hover { filter: brightness(0.97); }
+
+.expr-view {
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: #fafaf8;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.hl-expr { font: 14px var(--mono); white-space: pre; }
+.hl-mark {
+  background: #ffe29a;
+  border-radius: 3px;
+  padding: 0 1px;
+}
+
+.panel {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+}
+.panel.error {
+  border-color: var(--error);
+  background: var(--error-soft);
+}
+.error-msg { margin: 0 0 10px; color: var(--error); font-weight: 600; }
+.locator {
+  margin: 0;
+  font: 13.5px var(--mono);
+  color: var(--error);
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.result-grid { display: flex; }
+.value-line { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+.label { color: var(--muted); min-width: 150px; }
+.value { font: 18px var(--mono); font-weight: 650; }
+.value.target { color: var(--accent); }
+
+.meta { display: flex; gap: 20px; flex-wrap: wrap; color: var(--muted); margin-top: 8px; }
+.meta b { color: var(--ink); }
+
+.steps { list-style: none; margin: 0; padding: 0; }
+.step {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 12px;
+  margin-bottom: 8px;
+  transition: background 0.12s;
+}
+.step:hover { background: var(--accent-soft); }
+.step-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.step-index { color: var(--muted); font: 12.5px var(--mono); }
+.step-node { font-weight: 600; font-size: 13.5px; }
+.step-source {
+  font: 13px var(--mono);
+  background: #f1f0ec;
+  padding: 1px 7px;
+  border-radius: 5px;
+}
+.step:hover .step-source { background: #fff; }
+.dim {
+  margin-left: auto;
+  font: 12.5px var(--mono);
+  color: var(--muted);
+}
+.badge {
+  font-size: 11.5px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+.kind-abs { background: #fde8d0; color: #9a4a00; }
+.kind-delta { background: #e3f0e2; color: var(--ok); }
+.kind-reg { background: #eceef1; color: #444c56; }
+
+.step-body {
+  margin-top: 4px;
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+  font: 13.5px var(--mono);
+}
+.step-value { font-weight: 600; }
+.step-decimal { color: var(--muted); }
+.step-span { color: #a5a39c; font-size: 12px; margin-left: auto; }
