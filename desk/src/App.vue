@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import StepList from './components/StepList.vue'
 import HighlightedExpr from './components/HighlightedExpr.vue'
 
@@ -41,29 +41,51 @@ const activeSpan = computed(() => {
   return null
 })
 
+// Out-of-order guard. Every evaluation gets a fresh sequence number and
+// aborts the previous in-flight request, so a slower earlier response can
+// never overwrite the state belonging to a newer edit: result, error and
+// lastExpr on screen always come from the same, latest request.
+let requestSeq = 0
+let inFlight = null
+let debounceTimer = null
+
 async function evaluate() {
+  clearTimeout(debounceTimer)
+  const expr = sentExpression.value
+  const seq = ++requestSeq
   // Clear previous state up-front: an illegal expression must never leave a
   // stale result on screen.
   result.value = null
   error.value = null
   hoverSpan.value = null
-  const expr = sentExpression.value
   lastExpr.value = expr
-  if (!expr) return
+  if (inFlight) {
+    inFlight.abort()
+    inFlight = null
+  }
+  if (!expr) {
+    loading.value = false
+    return
+  }
+  const ctrl = new AbortController()
+  inFlight = ctrl
   loading.value = true
   try {
     const resp = await fetch('/api/eval', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ expression: expr }),
+      signal: ctrl.signal,
     })
     const body = await resp.json()
+    if (seq !== requestSeq) return // a newer evaluation owns the screen
     if (!resp.ok) {
       error.value = body
     } else {
       result.value = body
     }
   } catch (e) {
+    if (ctrl.signal.aborted || seq !== requestSeq) return // superseded
     error.value = {
       error: `无法连接 units 服务：${e.message}`,
       kind: 'network',
@@ -72,9 +94,26 @@ async function evaluate() {
       locator: '',
     }
   } finally {
-    loading.value = false
+    if (seq === requestSeq) loading.value = false
   }
 }
+
+// Auto re-evaluate shortly after the expression or the target unit changes.
+// The old result/error is cleared the moment the input diverges from what
+// was last evaluated, so stale values or error highlights never sit next to
+// the new input looking current.
+watch(sentExpression, expr => {
+  if (expr === lastExpr.value) return
+  result.value = null
+  error.value = null
+  hoverSpan.value = null
+  clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(() => {
+    if (sentExpression.value !== lastExpr.value) evaluate()
+  }, 300)
+})
+
+onMounted(evaluate)
 
 function useExample(ex) {
   expression.value = ex
@@ -107,7 +146,7 @@ function onStepHover(step) {
           <option value="">（目标单位）</option>
           <option v-for="u in units.filter(Boolean)" :key="u" :value="u">{{ u }}</option>
         </select>
-        <button id="eval-btn" :disabled="loading" @click="evaluate">
+        <button id="eval-btn" @click="evaluate">
           {{ loading ? '计算中…' : '求值' }}
         </button>
       </div>
@@ -124,6 +163,10 @@ function onStepHover(step) {
 
       <div v-if="lastExpr" class="expr-view" data-testid="expr-view">
         <HighlightedExpr :expr="lastExpr" :span="activeSpan" />
+      </div>
+
+      <div class="status-row">
+        <span v-if="loading" class="status" data-testid="loading-hint">计算中…</span>
       </div>
     </section>
 

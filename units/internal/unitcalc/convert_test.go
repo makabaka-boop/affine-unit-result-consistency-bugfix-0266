@@ -3,6 +3,7 @@ package unitcalc
 import (
 	"math/big"
 	"math/rand"
+	"strings"
 	"testing"
 )
 
@@ -93,6 +94,18 @@ func TestRatJSON(t *testing.T) {
 		"1/8":       "0.125",
 		"27315/100": "273.15",
 		"45967/180": "255.37(2)",
+		// Plain notation at the boundaries of the readable range.
+		"1/1000000":             "0.000001",
+		"100000000000000000000": "100000000000000000000",
+		// Outside the range: scientific notation with exact leading digits.
+		// A huge value must not render as "Infinity", a tiny non-zero value
+		// must not render as "0".
+		"1000000000000000000000":   "1×10²¹",
+		"1/1000000000000000000000": "1×10⁻²¹",
+		"3/2000000000000000000000": "1.5×10⁻²¹",
+		"1/2000000":                "5×10⁻⁷",
+		"7/5000000000":             "1.4×10⁻⁹",
+		"1/7000000000":             "1.42857142857142857142…×10⁻¹⁰",
 	}
 	for in, want := range cases {
 		r, _ := new(big.Rat).SetString(in)
@@ -100,5 +113,29 @@ func TestRatJSON(t *testing.T) {
 		if got != want {
 			t.Errorf("decimalExact(%s) = %s, want %s", in, got, want)
 		}
+	}
+}
+
+// Denominators with huge repeating periods must not explode the expansion or
+// stall the response: the decimal stays bounded and carries the truncation
+// marker, so it can never contradict the exact fraction next to it.
+func TestDecimalExpansionIsBounded(t *testing.T) {
+	for _, in := range []string{
+		"1/999983", "1/99999989", "1/999999937", "2/3", "1/97",
+		"1/2000000000000000000000000000000000000000000000000000000",
+	} {
+		r, _ := new(big.Rat).SetString(in)
+		got := decimalExact(r.Num(), r.Denom())
+		if len(got) > 160 {
+			t.Errorf("decimalExact(%s) = %d chars, want bounded", in, len(got))
+		}
+	}
+	r, _ := new(big.Rat).SetString("1/99999989")
+	if got := decimalExact(r.Num(), r.Denom()); !strings.Contains(got, "…") {
+		t.Errorf("decimalExact(1/99999989) = %q, want a truncated expansion", got)
+	}
+	r, _ = new(big.Rat).SetString("1/999983")
+	if got := decimalExact(r.Num(), r.Denom()); !strings.Contains(got, "…") {
+		t.Errorf("decimalExact(1/999983) = %q, want a truncated expansion", got)
 	}
 }

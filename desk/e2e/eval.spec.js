@@ -61,3 +61,56 @@ test('dimension mismatch is rejected', async ({ page }) => {
   await expect(page.getByTestId('error-msg')).toContainText('dimensions')
   await expect(page.locator('.hl-mark')).toHaveText('1 m + 1 kg')
 })
+
+// Editing re-evaluates on its own; the old result disappears the moment the
+// input diverges from what is displayed.
+test('edits re-evaluate automatically and clear the old result immediately', async ({ page }) => {
+  await page.goto('/')
+  // the initial expression is evaluated on load
+  await expect(page.getByTestId('base-value')).toContainText('23/10 m')
+
+  // editing clears the old result right away…
+  await page.fill('#expr-input', '1 kg + 500 g')
+  await expect(page.getByTestId('result-panel')).toHaveCount(0)
+
+  // …and a fresh result appears without any button click
+  await expect(page.getByTestId('result-panel')).toBeVisible()
+  await expect(page.getByTestId('base-value')).toContainText('3/2 kg')
+
+  // changing the target unit re-evaluates too
+  await page.selectOption('#target-select', 'g')
+  await expect(page.getByTestId('target-value')).toHaveText('1500 g')
+})
+
+// A slower earlier request must never overwrite the state of a newer edit.
+test('a slower earlier response cannot overwrite a newer result', async ({ page }) => {
+  await page.route('**/api/eval', async route => {
+    const expr = route.request().postDataJSON().expression
+    if (expr.includes('20 C')) {
+      // hold the temperature request back so it resolves out of order
+      await new Promise(r => setTimeout(r, 1200))
+    }
+    try {
+      await route.fallback()
+    } catch {
+      // the client may have aborted the superseded request
+    }
+  })
+  await page.goto('/')
+  await expect(page.getByTestId('base-value')).toContainText('23/10 m')
+
+  // trigger a slow evaluation…
+  await page.fill('#expr-input', '20 C + 5 dC in F')
+  await page.waitForRequest(
+    req => req.url().includes('/api/eval') && (req.postData() || '').includes('20 C'),
+  )
+
+  // …then edit again before the slow response comes back
+  await page.fill('#expr-input', '2 m * 3 m')
+  await expect(page.getByTestId('base-value')).toContainText('6 m²')
+
+  // even after the stale response arrives, the newer result must stay
+  await page.waitForTimeout(1800)
+  await expect(page.getByTestId('base-value')).toContainText('6 m²')
+  await expect(page.getByTestId('error-panel')).toHaveCount(0)
+})
